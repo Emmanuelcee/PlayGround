@@ -2,6 +2,7 @@ extends CharacterBody3D
 class_name StreetCar
 
 var car_name := "Vortex GT"
+var body_style := "sport"
 var paint := Color("#d94c43")
 var max_speed := 64.0
 var acceleration := 25.0
@@ -32,11 +33,30 @@ func _build_car() -> void:
 	collider.shape = shape
 	collider.position.y = 0.72
 	add_child(collider)
-	body_mesh = _box(Vector3(1.95, 0.72, 4.2), Vector3(0, 0.8, 0), paint, 0.3)
-	_box(Vector3(1.48, 0.62, 1.9), Vector3(0, 1.43, -0.25), Color("#a8c9d5"), 0.12, 0.32)
+	var body_size := Vector3(1.95, 0.72, 4.2)
+	var cabin_size := Vector3(1.48, 0.62, 1.9)
+	var cabin_position := Vector3(0, 1.43, -0.25)
+	if body_style == "wedge":
+		body_size = Vector3(1.98, 0.62, 4.3)
+		cabin_size = Vector3(1.42, 0.49, 1.72)
+		cabin_position = Vector3(0, 1.35, -0.18)
+	elif body_style == "gt":
+		body_size = Vector3(1.97, 0.76, 4.35)
+		cabin_size = Vector3(1.55, 0.65, 1.96)
+		cabin_position = Vector3(0, 1.46, 0.0)
+	elif body_style == "muscle":
+		body_size = Vector3(2.0, 0.82, 4.28)
+		cabin_size = Vector3(1.58, 0.66, 1.78)
+		cabin_position = Vector3(0, 1.5, 0.08)
+	body_mesh = _box(body_size, Vector3(0, 0.8, 0), paint, 0.3)
+	_box(cabin_size, cabin_position, Color("#a8c9d5"), 0.12, 0.32)
 	_box(Vector3(1.86, 0.12, 0.5), Vector3(0, 1.0, -1.75), Color("#f5f3ed"), 0.3)
 	_box(Vector3(1.78, 0.16, 0.48), Vector3(0, 0.96, 1.82), Color("#e65348"), 0.25)
 	_box(Vector3(1.55, 0.12, 0.14), Vector3(0, 1.6, 0.85), Color("#252a31"), 0.2)
+	if body_style == "wedge":
+		_box(Vector3(1.72, 0.08, 0.28), Vector3(0, 1.05, 2.12), Color("#242a32"), 0.35)
+	elif body_style == "muscle":
+		_box(Vector3(0.62, 0.14, 0.72), Vector3(0, 1.23, -1.0), Color("#303640"), 0.35)
 	for x in [-1.0, 1.0]:
 		for z in [-1.42, 1.42]:
 			var wheel := _cylinder(0.43, 0.28, Vector3(x, 0.43, z), Color("#161a20"))

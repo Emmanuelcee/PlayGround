@@ -13,7 +13,15 @@ const CARS := [
 	{"name":"APEX V12", "class":"HYPER", "speed":88.0, "accel":32.0, "handling":0.93, "color":"#f0e5d6", "price":6200},
 	{"name":"ECLIPSE GT", "class":"SPORT", "speed":74.0, "accel":28.0, "handling":1.1, "color":"#e56ca3", "price":3600},
 	{"name":"BLAZE 900", "class":"SUPERCAR", "speed":81.0, "accel":30.0, "handling":1.02, "color":"#ef7646", "price":5200},
-	{"name":"PHANTOM Z", "class":"HYPER", "speed":91.0, "accel":33.0, "handling":0.98, "color":"#4d637f", "price":8500}
+	{"name":"PHANTOM Z", "class":"HYPER", "speed":91.0, "accel":33.0, "handling":0.98, "color":"#4d637f", "price":8500},
+	{"name":"LAMBORGHINI REVUELTO", "class":"HYBRID HYPERCAR", "speed":96.0, "accel":37.0, "handling":1.05, "color":"#d5e43a", "price":16000, "style":"wedge"},
+	{"name":"FERRARI 296 GTB", "class":"HYBRID SUPERCAR", "speed":92.0, "accel":35.0, "handling":1.16, "color":"#d72d38", "price":13500, "style":"gt"},
+	{"name":"PORSCHE 911 TURBO S", "class":"SPORTS CAR", "speed":92.0, "accel":36.0, "handling":1.18, "color":"#f2eee6", "price":12800, "style":"gt"},
+	{"name":"MCLAREN 750S", "class":"SUPERCAR", "speed":94.0, "accel":36.0, "handling":1.12, "color":"#f08b35", "price":14500, "style":"wedge"},
+	{"name":"NISSAN GT-R NISMO", "class":"SPORTS CAR", "speed":87.0, "accel":33.0, "handling":1.04, "color":"#4a4e56", "price":10200, "style":"gt"},
+	{"name":"CHEVROLET CORVETTE Z06", "class":"SUPERCAR", "speed":92.0, "accel":35.0, "handling":1.08, "color":"#20a97a", "price":11400, "style":"wedge"},
+	{"name":"FORD MUSTANG DARK HORSE", "class":"MUSCLE", "speed":85.0, "accel":32.0, "handling":0.96, "color":"#3367ad", "price":8800, "style":"muscle"},
+	{"name":"MERCEDES-AMG GT", "class":"GRAND TOURER", "speed":89.0, "accel":34.0, "handling":1.1, "color":"#a7b3bd", "price":11900, "style":"gt"}
 ]
 const PAINTS := ["#db4e45", "#35a8c8", "#e8aa45", "#d5d9df", "#7657b9", "#68ad72", "#f0e5d6", "#e56ca3", "#ef7646", "#4d637f"]
 
@@ -434,12 +442,12 @@ func _show_garage() -> void:
 	menu_root.visible = true
 	race_hud.visible = false
 	var bg := ColorRect.new(); bg.color = Color("#09121e"); bg.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT); menu_root.add_child(bg)
-	_header(menu_root, "VEHICLE WORKSHOP  /  10 MACHINES", "THE GARAGE", "Tune your build. Paint your signature. Take it to the street.")
+	_header(menu_root, "VEHICLE WORKSHOP  /  %d MACHINES" % CARS.size(), "THE GARAGE", "Tune your build. Paint your signature. Take it to the street.")
 	_panel(menu_root, Rect2(55, 188, 1170, 460))
 	_button(menu_root, "‹", Rect2(82, 364, 58, 58), _prev_car)
 	_button(menu_root, "›", Rect2(1140, 364, 58, 58), _next_car)
 	_draw_car_preview(menu_root, Vector2(640, 345), CARS[selected_car].color if paint_index == 0 else PAINTS[paint_index])
-	_label(menu_root, "%02d  /  10" % (selected_car + 1), Vector2(588, 217), Vector2(110, 26), 14, Color("#ff9d73"))
+	_label(menu_root, "%02d  /  %02d" % [selected_car + 1, CARS.size()], Vector2(588, 217), Vector2(110, 26), 14, Color("#ff9d73"))
 	_label(menu_root, CARS[selected_car].name, Vector2(430, 465), Vector2(420, 42), 28, Color("#f4f3ef"), true)
 	var owned_car := owned.has(selected_car)
 	var data: Dictionary = CARS[selected_car]
@@ -477,7 +485,7 @@ func _show_career() -> void:
 	_label(menu_root, "GARAGE VALUE         %s CR" % _format_credits(credits), Vector2(120, 316), Vector2(480, 38), 20, Color("#f5d38d"))
 	_label(menu_root, "PERSONAL BEST         %s" % _format_time(best_time), Vector2(120, 370), Vector2(480, 38), 20, Color("#f2f1ed"))
 	_label(menu_root, "NEXT OBJECTIVE", Vector2(680, 249), Vector2(300, 25), 13, Color("#ff9d73"), true)
-	_label(menu_root, "Complete races to earn credits. Unlock any of the 10 cars, tune the engine, and build your own stable.", Vector2(680, 285), Vector2(430, 90), 17, Color("#b9c3cf"))
+	_label(menu_root, "Complete races to earn credits. Unlock any of the %d cars, tune the engine, and build your own stable." % CARS.size(), Vector2(680, 285), Vector2(430, 90), 17, Color("#b9c3cf"))
 	_button(menu_root, "START CAREER RACE  →", Rect2(680, 400, 390, 58), func(): selected_mode = 1; _start_race(), true)
 	_button(menu_root, "BACK", Rect2(116, 516, 240, 56), _show_home)
 
@@ -575,11 +583,12 @@ func _start_race() -> void:
 	player = CAR_SCRIPT.new()
 	player.name = "PlayerCar"
 	player.car_name = data.name
+	player.body_style = str(data.get("style", "sport"))
 	player.max_speed = float(data.speed) + engine_level * 3.5
 	player.acceleration = float(data.accel) + engine_level * 1.8
 	player.handling = float(data.handling)
 	player.is_player = true
-	player.set_paint(Color(PAINTS[paint_index]))
+	player.set_paint(Color(data.color if paint_index == 0 else PAINTS[paint_index]))
 	player.add_to_group("race_cars")
 	add_child(player)
 	_place_car(player, 0, 0.0)
