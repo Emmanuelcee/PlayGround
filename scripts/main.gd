@@ -3,6 +3,8 @@ extends Node3D
 const CAR_SCRIPT = preload("res://scripts/car.gd")
 const MODES := ["QUICK RACE", "CAREER", "FREE DRIVE", "DRIFT CHALLENGE", "POLICE CHASE", "TOURNAMENT", "MULTIPLAYER"]
 const TRACKS := ["NEON HARBOR", "ALPINE PASS", "DUST DEVIL", "PACIFIC RUN", "AFTER HOURS"]
+const DRIFT_CHALLENGE_SECONDS := 120.0
+const POLICE_CHASE_SECONDS := 90.0
 const CARS := [
 	{"name":"VORTEX GT", "class":"SPORT", "speed":66.0, "accel":26.0, "handling":1.0, "color":"#db4e45", "price":0},
 	{"name":"NOVA R8", "class":"SUPERCAR", "speed":76.0, "accel":29.0, "handling":0.96, "color":"#35a8c8", "price":1800},
@@ -389,8 +391,8 @@ func _show_home() -> void:
 	_button(menu_root, "‹  " + TRACKS[selected_track] + "  ›", Rect2(920, 282, 265, 46), _cycle_track)
 	var mode_copy := "3 laps · 5 rivals · earn credits and unlock cars"
 	if selected_mode == 2: mode_copy = "Open roads · cruise at your own pace · no finish line"
-	if selected_mode == 3: mode_copy = "Link long slides · chain drifts · beat your best score"
-	if selected_mode == 4: mode_copy = "Stay ahead of the patrol · survive the pursuit"
+	if selected_mode == 3: mode_copy = "120-second drift session · link slides · beat your best score"
+	if selected_mode == 4: mode_copy = "90-second pursuit · stay ahead of the patrol · survive"
 	if selected_mode == 5: mode_copy = "Three rounds · podium points · championship reward"
 	if selected_mode == 6: mode_copy = "Online multiplayer is planned for a future update"
 	_label(menu_root, mode_copy, Vector2(645, 345), Vector2(545, 38), 14, Color("#b9c3cf"))
@@ -561,9 +563,6 @@ func _start_race() -> void:
 	if selected_mode == 6:
 		_show_future()
 		return
-	if selected_mode == 4:
-		laps_total = 1
-		# Police pursuit mode uses a short survival timer rather than a lap finish.
 	for actor in get_tree().get_nodes_in_group("race_cars"):
 		actor.queue_free()
 	opponents.clear()
@@ -659,7 +658,7 @@ func _build_race_hud() -> void:
 	_label(race_hud, "LAP", Vector2(44, 65), Vector2(40, 20), 12, Color("#93a1b2"))
 	var lap_label := _label(race_hud, "1 / %d" % laps_total, Vector2(86, 59), Vector2(110, 30), 20, Color("#f2f1ed"), true)
 	lap_label.name = "LapLabel"
-	var time_label := _label(race_hud, "00:00.000", Vector2(44, 88), Vector2(160, 20), 12, Color("#c0cad5"))
+	var time_label := _label(race_hud, "00:00.000", Vector2(44, 88), Vector2(220, 20), 12, Color("#c0cad5"))
 	time_label.name = "TimeLabel"
 	var rank_label := _label(race_hud, "1ST / 6", Vector2(1072, 34), Vector2(160, 33), 22, Color("#f1f0ec"), true)
 	rank_label.name = "RankLabel"
@@ -795,7 +794,11 @@ func _process(delta: float) -> void:
 		message_label.visible = true
 	elif elapsed > 1.7 and message_label.text.contains("GET READY"):
 		message_label.visible = false
-	if laps_total > 0 and race_progress >= route.size() * laps_total and selected_mode != 2:
+	if selected_mode == 3 and race_time >= DRIFT_CHALLENGE_SECONDS:
+		_finish_race()
+	elif selected_mode == 4 and race_time >= POLICE_CHASE_SECONDS:
+		_finish_race()
+	elif selected_mode != 2 and selected_mode != 3 and selected_mode != 4 and laps_total > 0 and race_progress >= route.size() * laps_total:
 		_finish_race()
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -874,7 +877,13 @@ func _update_hud() -> void:
 		if selected_mode == 2: lap_label.text = "OPEN"
 		elif selected_mode == 3: lap_label.text = "DRIFT"
 		else: lap_label.text = "%d / %d" % [lap, laps_total]
-	if is_instance_valid(time_label): time_label.text = _format_time(race_time) + ("   ·   %d PTS" % drift_score if selected_mode == 3 else "")
+	if is_instance_valid(time_label):
+		if selected_mode == 3:
+			time_label.text = "%s LEFT   ·   %d PTS" % [_format_time(maxf(0.0, DRIFT_CHALLENGE_SECONDS - race_time)), drift_score]
+		elif selected_mode == 4:
+			time_label.text = "%s LEFT" % _format_time(maxf(0.0, POLICE_CHASE_SECONDS - race_time))
+		else:
+			time_label.text = _format_time(race_time)
 	if is_instance_valid(speed): speed.text = "%03d" % int(absf(player.speed) * 3.6)
 	if is_instance_valid(rank_label): rank_label.text = "%s  /  6" % _player_rank()
 	if is_instance_valid(nitro_bar): nitro_bar.value = player.nitro
@@ -936,6 +945,9 @@ func _finish_race() -> void:
 	shade.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	race_hud.add_child(shade)
 	_panel(race_hud, Rect2(360, 165, 560, 390), Color(0.035, 0.055, 0.085, 0.98))
-	_label(race_hud, "FINISH  /  %s" % ["1ST", "2ND", "3RD", "4TH", "5TH", "6TH"][clampi(rank - 1, 0, 5)], Vector2(430, 205), Vector2(430, 48), 30, Color("#f4f3ef"), true)
+	var result_title := "FINISH  /  %s" % ["1ST", "2ND", "3RD", "4TH", "5TH", "6TH"][clampi(rank - 1, 0, 5)]
+	if selected_mode == 3: result_title = "DRIFT SESSION COMPLETE"
+	elif selected_mode == 4: result_title = "PURSUIT SURVIVED"
+	_label(race_hud, result_title, Vector2(430, 205), Vector2(430, 48), 30, Color("#f4f3ef"), true)
 	_label(race_hud, "TIME    %s\nREWARD    +%s CR\nDRIFT SCORE    %d" % [_format_time(race_time), _format_credits(reward), drift_score], Vector2(432, 280), Vector2(420, 120), 20, Color("#c4cfda"))
 	_button(race_hud, "RETURN TO GARAGE", Rect2(438, 457, 400, 56), _quit_race, true)
