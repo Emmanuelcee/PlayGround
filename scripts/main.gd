@@ -5,6 +5,9 @@ const MODES := ["QUICK RACE", "CAREER", "FREE DRIVE", "DRIFT CHALLENGE", "POLICE
 const TRACKS := ["NEON HARBOR", "ALPINE PASS", "DUST DEVIL", "PACIFIC RUN", "AFTER HOURS"]
 const DRIFT_CHALLENGE_SECONDS := 120.0
 const POLICE_CHASE_SECONDS := 90.0
+const POLICE_CAPTURE_DISTANCE := 5.5
+const POLICE_CAPTURE_SECONDS := 2.5
+const TOURNAMENT_POINTS := [10, 8, 6, 4, 2, 1]
 const CARS := [
 	{"name":"VORTEX GT", "class":"SPORT", "speed":66.0, "accel":26.0, "handling":1.0, "color":"#db4e45", "price":0},
 	{"name":"NOVA R8", "class":"SUPERCAR", "speed":76.0, "accel":29.0, "handling":0.96, "color":"#35a8c8", "price":1800},
@@ -37,6 +40,13 @@ var engine_level := 0
 var paint_index := 0
 var wheel_style := 0
 var tournament_round := 0
+var tournament_points := 0
+var tournament_standings: Array[int] = [0, 0, 0, 0, 0, 0]
+var tournament_start_track := 0
+var tournament_completed := false
+var police_capture_time := 0.0
+var police_caught := false
+var best_times := {}
 var quality := 1
 var target_fps := 60
 var night := false
@@ -71,6 +81,7 @@ var career_races := 0
 var best_time := 0.0
 
 func _ready() -> void:
+	process_mode = Node.PROCESS_MODE_ALWAYS
 	_load_progress()
 	_build_environment()
 	_build_track()
@@ -87,8 +98,10 @@ func _load_progress() -> void:
 		paint_index = int(save.get_value("profile", "paint", 0))
 		career_races = int(save.get_value("profile", "career", 0))
 		best_time = float(save.get_value("profile", "best", 0.0))
+		best_times = save.get_value("profile", "best_times", {})
 	selected_car = clampi(selected_car, 0, CARS.size() - 1)
 	if not owned.has(0): owned.append(0)
+	if not owned.has(selected_car): selected_car = 0
 
 func _save_progress() -> void:
 	save.set_value("profile", "credits", credits)
@@ -98,6 +111,7 @@ func _save_progress() -> void:
 	save.set_value("profile", "paint", paint_index)
 	save.set_value("profile", "career", career_races)
 	save.set_value("profile", "best", best_time)
+	save.set_value("profile", "best_times", best_times)
 	save.save("user://progress.cfg")
 
 func _build_environment() -> void:
@@ -292,6 +306,7 @@ func _build_ui() -> void:
 	menu_root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	ui.add_child(menu_root)
 	race_hud = Control.new()
+	race_hud.process_mode = Node.PROCESS_MODE_ALWAYS
 	race_hud.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	race_hud.visible = false
 	ui.add_child(race_hud)
@@ -563,6 +578,18 @@ func _start_race() -> void:
 	if selected_mode == 6:
 		_show_future()
 		return
+	if not owned.has(selected_car):
+		_show_garage()
+		return
+	if selected_mode == 5 and tournament_completed:
+		tournament_round = 0
+		tournament_points = 0
+		tournament_completed = false
+	if selected_mode == 5 and tournament_round == 0:
+		tournament_points = 0
+	get_tree().paused = false
+	police_capture_time = 0.0
+	police_caught = false
 	for actor in get_tree().get_nodes_in_group("race_cars"):
 		actor.queue_free()
 	opponents.clear()
@@ -581,6 +608,7 @@ func _start_race() -> void:
 	var data: Dictionary = CARS[selected_car]
 	player = CAR_SCRIPT.new()
 	player.name = "PlayerCar"
+	player.process_mode = Node.PROCESS_MODE_PAUSABLE
 	player.car_name = data.name
 	player.body_style = str(data.get("style", "sport"))
 	player.max_speed = float(data.speed) + engine_level * 3.5
@@ -595,6 +623,7 @@ func _start_race() -> void:
 	for i in range(5):
 		var rival: StreetCar = CAR_SCRIPT.new()
 		rival.name = "Rival_%d" % (i + 1)
+		rival.process_mode = Node.PROCESS_MODE_PAUSABLE
 		rival.car_name = ["KAI", "MILA", "REX", "JUNO", "ASH"][i]
 		rival.max_speed = float(data.speed) * (0.72 + i * 0.025)
 		rival.acceleration = float(data.accel) * 0.84
